@@ -38,7 +38,7 @@ twine upload dist/*
 # Setup daemon
 
 ```bash
-nano /etc/systemd/system/notify-online.service
+sudo nano /etc/systemd/system/notify-online.service
 ```
 
 ```yaml
@@ -49,7 +49,6 @@ After=network.target
 [Service]
 User=1000
 Group=1000
-WorkingDirectory=/home/emoi/Downloads/Miscellaneous/zxz
 Environment=MAIL_SERVER="smtp.gmail.com" MAIL_PORT=587 MAIL_USERNAME="................@gmail.com" MAIL_RECEIPIENT="................@gmail.com" MAIL_PASSWORD="............" MAIL_USE_TLS=1 MAIL_USER_SSL=0
 ExecStart=/bin/bash -c '/home/emoi/anaconda3/bin/python3 -m pip install --upgrade notify-online && /home/emoi/anaconda3/bin/python3 -c "from notify_online import notify_online; notify_online()"'
 ExecReload=/usr/bin/kill -s HUP $MAINPID
@@ -63,6 +62,7 @@ WantedBy=multi-user.target
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl status notify-online.service
+sudo journalctl -u notify-online.service
 
 sudo systemctl start notify-online.service
 sudo systemctl restart notify-online.service
