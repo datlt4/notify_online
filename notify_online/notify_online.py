@@ -9,72 +9,52 @@ import socket
 import requests
 import logging
 
-logging.basicConfig(
-    format="%(asctime)s [%(levelname)-8s] %(message)s",
-    level=logging.INFO,
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
 
-app = Flask(__name__)
-CORS(app, support_credentials=True, resources={r"/api/*": {"origins": "*"}})
-app.secret_key = sha256(str(time.time()).encode("utf-8")).hexdigest()
-app.config.update(
-    MAIL_SERVER=os.environ.get("MAIL_SERVER", "smtp.gmail.com"),
-    MAIL_PORT=int(os.environ.get("MAIL_PORT", 587)),
-    MAIL_USERNAME=os.environ.get("MAIL_USERNAME", None),
-    MAIL_RECEIPIENT=os.environ.get("MAIL_RECEIPIENT", None),
-    MAIL_PASSWORD=os.environ.get("MAIL_PASSWORD", None),
-    MAIL_USE_TLS=bool(int(os.environ.get("MAIL_USE_TLS", True))),
-    MAIL_USE_SSL=bool(int(os.environ.get("MAIL_USE_SSL", False))),
-    HOSTNAME=socket.gethostname(),
-)
-if (
-    (app.config["MAIL_USERNAME"] is None)
-    or (app.config["MAIL_RECEIPIENT"] is None)
-    or (app.config["MAIL_PASSWORD"] is None)
-):
-    logging.error("Lack Email information")
-    exit(1)
-mail = Mail(app)
+def create_app() -> Flask | None:
+    app = Flask(__name__)
+    CORS(app, support_credentials=True, resources={r"/api/*": {"origins": "*"}})
+    app.secret_key = sha256(str(time.time()).encode("utf-8")).hexdigest()
+    app.config.update(
+        MAIL_SERVER=os.environ.get("MAIL_SERVER", "smtp.gmail.com"),
+        MAIL_PORT=int(os.environ.get("MAIL_PORT", 587)),
+        MAIL_USERNAME=os.environ.get("MAIL_USERNAME", None),
+        MAIL_RECEIPIENT=os.environ.get("MAIL_RECEIPIENT", None),
+        MAIL_PASSWORD=os.environ.get("MAIL_PASSWORD", None),
+        MAIL_USE_TLS=bool(int(os.environ.get("MAIL_USE_TLS", True))),
+        MAIL_USE_SSL=bool(int(os.environ.get("MAIL_USE_SSL", False))),
+        HOSTNAME=socket.gethostname(),
+    )
+    if (
+        (app.config["MAIL_USERNAME"] is None)
+        or (app.config["MAIL_RECEIPIENT"] is None)
+        or (app.config["MAIL_PASSWORD"] is None)
+    ):
+        logging.error("Lack email information")
+        return None
+    else:
+        return app
 
 
-def send_email(
-    subject: str, sender: str, recipients: list, text_body: str, html_body: str
-) -> bool:
-    try:
-        msg = Message(subject, sender=sender, recipients=recipients)
-        msg.body = text_body
-        msg.html = html_body
-        # thr = Thread(target=send_async_email, args=[app, msg])
-        # thr.start()
-        mail.send(msg)
-        logging.info("Sent email to " + ", ".join(recipients) + " successfully")
-        return True
-    except Exception as e:
-        logging.error(f"Error sending email: {str(e)}")
+def send_email() -> bool:
+    logging.basicConfig(
+        format="%(asctime)s [%(levelname)-8s] %(message)s",
+        level=logging.INFO,
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    app = create_app()
+    if app is None:
         return False
 
-
-def check_internet() -> bool:
-    url = "http://www.google.com"
-    timeout = 5
-    try:
-        _ = requests.get(url, timeout=timeout)
-        return True
-    except requests.ConnectionError:
-        return False
-    except Exception as e:
-        return False
-
-
-def main() -> None:
-    previous_status = False
-
-    while True:
-        current_status = check_internet()
-        logging.info(f"Current status: {'ONLINE' if current_status else 'ONLINE'}")
-        if not previous_status and current_status:
-            html_body = render_template_string(
+    mail = Mail(app)
+    with app.app_context():
+        try:
+            msg = Message(
+                f"{socket.gethostname()} is online",
+                sender=app.config["MAIL_USERNAME"],
+                recipients=[app.config["MAIL_RECEIPIENT"]],
+            )
+            msg.body = "Your device is now online."
+            msg.html = render_template_string(
                 """
                 <!DOCTYPE html>
                 <html lang="en">
@@ -138,20 +118,49 @@ def main() -> None:
 
                 </html>
                 """,
-                device_name=app.config["HOSTNAME"].upper(),
-                hostname=app.config["HOSTNAME"],
+                device_name=socket.gethostname().upper(),
+                hostname=socket.gethostname(),
             )
-            ec = send_email(
-                subject=f"{app.config['HOSTNAME']} is online",
-                sender=app.config["MAIL_USERNAME"],
-                recipients=[app.config["MAIL_RECEIPIENT"]],
-                text_body="Your device is now online.",
-                html_body=html_body,
+
+            mail.send(msg)
+            logging.info(
+                "Sent email to "
+                + ", ".join([app.config["MAIL_RECEIPIENT"]])
+                + " successfully"
             )
+            return True
+        except Exception as e:
+            logging.error(f"Error sending email: {str(e)}")
+            return False
+
+
+def check_internet() -> bool:
+    url = "http://www.google.com"
+    timeout = 15
+    try:
+        _ = requests.get(url, timeout=timeout)
+        return True
+    except requests.ConnectionError:
+        return False
+    except Exception:
+        return False
+
+
+def notify_online() -> None:
+    logging.basicConfig(
+        format="%(asctime)s [%(levelname)-8s] %(message)s",
+        level=logging.INFO,
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    previous_status = False
+
+    while True:
+        current_status = check_internet()
+        logging.info(f"Current status: {'ONLINE' if current_status else 'ONLINE'}")
+        if not previous_status and current_status:
+            ec = send_email()
+            if not ec:
+                break
+
         previous_status = current_status
         time.sleep(60)  # Check every 60 seconds
-
-
-if __name__ == "__main__":
-    with app.app_context():
-        main()

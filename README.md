@@ -20,5 +20,17 @@ export MAIL_USER_SSL=0
 # Run application
 
 ```bash
-python3 notify_online.py
+python3 -c "from notify_online import notify_online; notify_online()"
+```
+
+# Build package
+
+```bash
+python3 setup.py sdist bdist_wheel
+```
+
+# Publish package to Pypi
+
+```bash
+twine upload dist/*
 ```
