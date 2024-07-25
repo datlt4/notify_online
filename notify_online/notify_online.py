@@ -10,7 +10,7 @@ import requests
 import logging
 
 
-def create_app() -> Flask | None:
+def create_app():
     app = Flask(__name__)
     CORS(app, support_credentials=True, resources={r"/api/*": {"origins": "*"}})
     app.secret_key = sha256(str(time.time()).encode("utf-8")).hexdigest()

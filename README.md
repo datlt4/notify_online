@@ -34,3 +34,41 @@ python3 setup.py sdist bdist_wheel
 ```bash
 twine upload dist/*
 ```
+
+# Setup daemon
+
+```bash
+nano /etc/systemd/system/notify-online.service
+```
+
+```yaml
+[Unit]
+Description=Daemon for serving notify-online
+After=network.target
+
+[Service]
+User=1000
+Group=1000
+WorkingDirectory=/home/emoi/Downloads/Miscellaneous/zxz
+Environment=MAIL_SERVER="smtp.gmail.com" MAIL_PORT=587 MAIL_USERNAME="................@gmail.com" MAIL_RECEIPIENT="................@gmail.com" MAIL_PASSWORD="............" MAIL_USE_TLS=1 MAIL_USER_SSL=0
+ExecStart=/bin/bash -c '/home/emoi/anaconda3/bin/python3 -m pip install --upgrade notify-online && /home/emoi/anaconda3/bin/python3 -c "from notify_online import notify_online; notify_online()"'
+ExecReload=/usr/bin/kill -s HUP $MAINPID
+Restart=always
+# RestartSec=60
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl status notify-online.service
+
+sudo systemctl start notify-online.service
+sudo systemctl restart notify-online.service
+sudo systemctl stop notify-online.service
+
+sudo systemctl enable notify-online.service
+sudo systemctl is-enabled notify-online.service
+sudo systemctl disable notify-online.service
+```
